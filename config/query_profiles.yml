@@ -1,8 +1,13 @@
 version: 5
 
+# NOTE:
+# `deep_read_budget` is a legacy field name kept for compatibility with earlier notes.
+# In the current root-only policy, this should be read as the budget for `root_refresh`.
+
 defaults:
   channel: twitter
   operation: search
+  store_root_posts_only: true
   blocked_topics:
     - politics
     - war
@@ -25,6 +30,11 @@ defaults:
     - 歴史
     - 宗教
     - 差別
+  pre_db_filters:
+    discard_reply_like_posts: true
+    discard_link_stub_posts: true
+    discard_external_news_or_brand_broadcast_posts: true
+    min_views_floor: 5000
   require_country_anchor: true
 
 learning_policy:
@@ -42,23 +52,27 @@ portfolio_targets:
     culture: 0.20
   min_weekly_shortlists_by_topic_bucket:
     infrastructure: 2
-    language: 2
+    language: 3
     customs: 2
     story: 2
-    humor: 1
+    humor: 2
   batch_rules:
     max_same_topic_bucket: 2
-    min_distinct_topic_buckets: 4
-    min_distinct_archetypes: 3
+    min_distinct_topic_buckets: 5
+    min_distinct_archetypes: 4
     require_frontier_profile: true
+    min_non_jp_profiles: 1
+    min_local_bridge_profiles: 1
+    min_object_anchor_profiles: 1
+    max_jp_scoped_share: 0.75
   exploration_mix:
-    staple: 0.50
-    archetype_expansion: 0.30
-    frontier: 0.20
+    staple: 0.40
+    archetype_expansion: 0.25
+    frontier: 0.35
   language_lane_mix:
-    en_hub: 0.55
-    ja_seed: 0.30
-    local_bridge: 0.15
+    en_hub: 0.50
+    ja_seed: 0.20
+    local_bridge: 0.30
   region_rotation:
     min_weekly_active_clusters: 4
     preferred_clusters:
@@ -133,7 +147,7 @@ profiles:
     cadence_minutes: 360
     discovery_limit: 24
     deep_read_budget: 4
-    query_template: '(Japan OR Japanese) (food OR snack OR dessert OR bakery OR convenience OR konbini) (favorite OR amazing OR better OR different) lang:en -war -government -election -immigration'
+    query_template: '((Japan OR Japanese OR konbini OR "convenience store") (food OR snack OR dessert OR sandwich OR bakery) ("what should i buy" OR "what should i try" OR "what do you recommend" OR "what''s your favorite" OR "what is your favorite" OR "which is better")) lang:en -war -government -election -immigration'
     gate_policy:
       min_views: 20000
       min_replies: 35
@@ -146,6 +160,7 @@ profiles:
     priority: 98
     maturity: proven
     portfolio_role: staple
+    language_lane: en_hub
     archetype_tags: [bilateral_exchange, ama, conversation_start]
     topic_bucket: daily_life
     language_scope: [en]
@@ -156,7 +171,7 @@ profiles:
     cadence_minutes: 240
     discovery_limit: 24
     deep_read_budget: 4
-    query_template: '(Japan OR Japanese) (Britain OR British OR America OR American) (ask OR question OR AMA OR culture OR daily) lang:en -war -government -election -immigration'
+    query_template: '((Japan OR Japanese) (Britain OR British OR America OR American) ("question for" OR AMA OR "what do you" OR "what is one thing" OR "what would you" OR "how do you")) lang:en -war -government -election -immigration'
     gate_policy:
       min_views: 20000
       min_replies: 60
@@ -254,8 +269,8 @@ profiles:
       min_views: 8000
       min_replies: 20
       min_quotes: 3
-    enabled: true
-    notes: move Europe from generic national-trait praise toward concrete city, service, and language anchors
+    enabled: false
+    notes: rotated out after 2026-04-15 precision eval; current English Europe prompt still surfaced travel and commentary noise more than clean conversation seeds
 
   - id: en_latam_affinity_prompt_live
     lane: exploration
@@ -285,14 +300,15 @@ profiles:
       min_views: 8000
       min_replies: 20
       min_quotes: 3
-    enabled: true
-    notes: keep as an English hub probe only when tied to Japan plus local-life anchors; generic English LatAm praise stayed too sparse in round2
+    enabled: false
+    notes: rotated out after 2026-04-15 precision eval; generic English LatAm affinity stayed sparse and produced no concept-fit keeps
 
   - id: en_jp_surprise_prompt_hot
     lane: hot_trend
     priority: 94
     maturity: proven
     portfolio_role: staple
+    language_lane: en_hub
     archetype_tags: [surprise_prompt, curiosity_prompt, discovery]
     topic_bucket: daily_life
     language_scope: [en]
@@ -316,6 +332,7 @@ profiles:
     priority: 90
     maturity: proven
     portfolio_role: staple
+    language_lane: en_hub
     archetype_tags: [recommendation_request, live_question, conversation_start]
     topic_bucket: food
     language_scope: [en]
@@ -362,14 +379,15 @@ profiles:
       min_views: 15000
       min_replies: 25
       min_quotes: 5
-    enabled: true
-    notes: keep with extra safety screening before shortlist
+    enabled: false
+    notes: rotated out after 2026-04-15 precision eval; current translation wording stayed too broad and returned mostly weak or off-concept roots
 
   - id: en_jp_story_bridge_explore
     lane: exploration
     priority: 82
     maturity: tentative
     portfolio_role: archetype_expansion
+    language_lane: en_hub
     archetype_tags: [story_seed, memory_exchange, bridge_candidate]
     topic_bucket: story
     language_scope: [en]
@@ -393,6 +411,7 @@ profiles:
     priority: 78
     maturity: experimental
     portfolio_role: archetype_expansion
+    language_lane: en_hub
     archetype_tags: [comparison_prompt, surprise_prompt, bridge_candidate]
     topic_bucket: daily_life
     language_scope: [en]
@@ -416,6 +435,7 @@ profiles:
     priority: 76
     maturity: experimental
     portfolio_role: archetype_expansion
+    language_lane: en_hub
     archetype_tags: [surprise_prompt, service_reaction, bridge_candidate]
     topic_bucket: infrastructure
     language_scope: [en]
@@ -470,6 +490,7 @@ profiles:
     priority: 72
     maturity: experimental
     portfolio_role: frontier
+    language_lane: en_hub
     archetype_tags: [microculture_observation, surprise_prompt, bridge_candidate]
     topic_bucket: customs
     language_scope: [en]
@@ -493,6 +514,7 @@ profiles:
     priority: 78
     maturity: experimental
     portfolio_role: frontier
+    language_lane: en_hub
     archetype_tags: [recommendation_request, appreciation_prompt, bridge_candidate]
     topic_bucket: hobby
     language_scope: [en]
@@ -543,6 +565,131 @@ profiles:
     enabled: true
     notes: English-first seed for slang, euphemism, and word-choice posts; keep prompts concrete enough that replies become examples instead of ideology
 
+  - id: en_anglosphere_word_choice_banter_live
+    lane: live_conversation
+    priority: 93
+    maturity: experimental
+    portfolio_role: frontier
+    editorial_modes: [single_post]
+    country_pairs: [us_gb, us_au, gb_au, us_ca, gb_ca]
+    language_lane: en_hub
+    motif: object_anchor_banter
+    topic_pack: language_play
+    risk_tier: medium
+    expected_reply_driver: playful_examples
+    target_reply_min: 55
+    exclude_pack: [core_safe, banter_guard, language_guard]
+    archetype_tags: [banter, low_stakes_humor, conversation_start]
+    topic_bucket: language
+    language_scope: [en]
+    country_scope: [us, gb, au, ca, ie, nz]
+    intent_tags: [banter, language, conversation_start]
+    theme_tags: [slang, word_choice, snack_names, bathroom_words, queue]
+    window_hours: 72
+    cadence_minutes: 240
+    discovery_limit: 18
+    deep_read_budget: 2
+    query_template: '((America OR American OR Britain OR British OR Australia OR Australian OR Canada OR Canadian OR Ireland OR Irish OR "New Zealand" OR Kiwi) ("what do you call" OR "you call it" OR "we call it" OR "who says" OR "only in" OR "wrong" OR "fighting words")) (chips OR crisps OR fries OR cookie OR biscuit OR soda OR pop OR candy OR sweets OR queue OR line OR loo OR bathroom) lang:en -war -government -election -immigration -history -religion -race'
+    gate_policy:
+      min_views: 12000
+      min_replies: 55
+      min_quotes: 4
+    enabled: true
+    notes: highest-priority safe banter lane; the disagreement is about words or objects, not about national character
+
+  - id: en_global_chain_roast_bridge
+    lane: bridge_candidate
+    priority: 87
+    maturity: experimental
+    portfolio_role: archetype_expansion
+    country_pairs: [jp_us, jp_gb, us_gb, us_au, global_chain]
+    language_lane: en_hub
+    motif: localization_compare
+    topic_pack: food_localization
+    risk_tier: low
+    expected_reply_driver: compare_variants
+    target_reply_min: 25
+    exclude_pack: [core_safe]
+    archetype_tags: [comparison_prompt, low_stakes_humor, bridge_candidate]
+    topic_bucket: humor
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca, fr, de, mx, br, sg]
+    intent_tags: [comparison, chain_menu, bridge_candidate]
+    theme_tags: [shared_brand, localization, cursed_flavor, menu, packaging]
+    window_hours: 168
+    cadence_minutes: 480
+    discovery_limit: 18
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR America OR American OR Britain OR British OR Australia OR Australian OR Canada OR Canadian OR France OR French OR Germany OR German OR Mexico OR Mexican OR Brazil OR Brazilian OR Singapore OR Singaporean) ("McDonald''s" OR KFC OR "7-11" OR KitKat OR Oreo OR Starbucks) (menu OR flavor OR packaging OR version OR local OR cursed OR adapted OR better OR worse)) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 10000
+      min_replies: 25
+      min_quotes: 4
+    enabled: true
+    notes: shared-brand teasing adds humor without falling back to nation-trait mockery
+
+  - id: en_home_device_compare_bridge
+    lane: bridge_candidate
+    priority: 86
+    maturity: experimental
+    portfolio_role: archetype_expansion
+    country_pairs: [jp_us, jp_gb, jp_au, jp_ca, us_gb]
+    language_lane: en_hub
+    motif: object_anchor_banter
+    topic_pack: home_costs
+    risk_tier: low
+    expected_reply_driver: compare_examples
+    target_reply_min: 25
+    exclude_pack: [core_safe]
+    archetype_tags: [comparison_prompt, bridge_candidate, low_stakes_humor]
+    topic_bucket: daily_life
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [daily_life, appliance, bridge_candidate]
+    theme_tags: [kettle, rice_cooker, bidet, dryer, washing_machine, microwave]
+    window_hours: 168
+    cadence_minutes: 480
+    discovery_limit: 18
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR America OR American OR Britain OR British OR Australia OR Australian OR Canada OR Canadian) (kettle OR bidet OR "rice cooker" OR dryer OR "washing machine" OR microwave OR dishwasher) ("do you have" OR "why don''t you" OR "which is better" OR "can''t live without" OR "never understood")) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 10000
+      min_replies: 25
+      min_quotes: 3
+    enabled: true
+    notes: turns household devices into playful cross-country comparison instead of generic culture commentary
+
+  - id: en_queue_line_banter_explore
+    lane: exploration
+    priority: 84
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_us, jp_gb, gb_fr, sg_jp]
+    language_lane: en_hub
+    motif: object_anchor_banter
+    topic_pack: city_service
+    risk_tier: medium
+    expected_reply_driver: petty_examples
+    target_reply_min: 25
+    exclude_pack: [core_safe, banter_guard]
+    archetype_tags: [banter, comparison_prompt, bridge_candidate]
+    topic_bucket: customs
+    language_scope: [en]
+    country_scope: [jp, us, gb, fr, sg]
+    intent_tags: [banter, etiquette, exploration]
+    theme_tags: [queue, line, escalator, crosswalk, sidewalk, platform]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR America OR American OR Britain OR British OR France OR French OR Singapore OR Singaporean) (queue OR line OR escalator OR platform OR sidewalk OR crosswalk) ("what is normal" OR "which side" OR "why do people" OR "do you also" OR "this drives me crazy")) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 12000
+      min_replies: 25
+      min_quotes: 3
+    enabled: true
+    notes: petty etiquette friction widens the portfolio beyond appreciation while staying tied to concrete public behavior
+
   - id: en_global_rollcall_conversation_live
     lane: live_conversation
     priority: 81
@@ -574,6 +721,38 @@ profiles:
       min_quotes: 4
     enabled: true
     notes: explicit roll-call threads can stand alone without pairing and are useful when many countries are already participating in one place
+
+  - id: en_non_jp_petty_rollcall_live
+    lane: live_conversation
+    priority: 82
+    maturity: experimental
+    portfolio_role: frontier
+    editorial_modes: [single_post]
+    country_pairs: [global_non_jp]
+    language_lane: en_hub
+    motif: self_contained_roll_call
+    topic_pack: low_stakes_humor
+    risk_tier: medium
+    expected_reply_driver: roll_call_examples
+    target_reply_min: 45
+    exclude_pack: [core_safe, banter_guard]
+    archetype_tags: [multi_country_conversation, low_stakes_humor, conversation_start]
+    topic_bucket: humor
+    language_scope: [en]
+    country_scope: [us, gb, au, ca, ie, nz, fr, de, mx, br]
+    intent_tags: [single_post, multi_country, banter]
+    theme_tags: [queue, fries, cookies, bathroom_words, ac, laundry, breakfast]
+    window_hours: 72
+    cadence_minutes: 240
+    discovery_limit: 18
+    deep_read_budget: 2
+    query_template: '(("drop your country and" OR "where are you from and" OR "what country are you from and") ("what do you call" OR "what do people complain about" OR "what is the normal way to")) (queue OR line OR fries OR crisps OR cookie OR biscuit OR bathroom OR toilet OR AC OR laundry OR breakfast) lang:en -war -government -election -immigration -history -religion -race'
+    gate_policy:
+      min_views: 12000
+      min_replies: 45
+      min_quotes: 4
+    enabled: true
+    notes: non-JP roll-call threads keep the account from collapsing back into one country hub while still fitting the concept
 
   - id: ja_en_wordplay_discovery_explore
     lane: exploration
@@ -793,6 +972,37 @@ profiles:
     enabled: true
     notes: use Spanish local-life curiosity instead of broad admiration so LatAm can feed bridge candidates more reliably
 
+  - id: es_latam_word_choice_banter_explore
+    lane: exploration
+    priority: 74
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [mx_ar, mx_cl, ar_cl, mx_pe]
+    language_lane: local_bridge
+    motif: object_anchor_banter
+    topic_pack: language_play
+    risk_tier: medium
+    expected_reply_driver: playful_examples
+    target_reply_min: 18
+    exclude_pack: [core_safe, banter_guard, language_guard]
+    archetype_tags: [banter, language_exchange, exploration]
+    topic_bucket: language
+    language_scope: [es]
+    country_scope: [mx, ar, cl, pe]
+    intent_tags: [exploration, latam, banter]
+    theme_tags: [papas, gaseosa, refresco, fila, cola, bano, palomitas]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Mexico OR México OR Argentina OR Chile OR Peru OR Perú) ("como le dicen" OR "como llaman" OR "ustedes dicen" OR "quien dice") (papas OR fritas OR gaseosa OR refresco OR fila OR cola OR baño OR palomitas)) lang:es -guerra -gobierno -eleccion'
+    gate_policy:
+      min_views: 8000
+      min_replies: 18
+      min_quotes: 2
+    enabled: true
+    notes: gives LatAm a concrete object-anchor banter lane instead of relying on weak English admiration prompts
+
   - id: fr_jp_culture_explore
     lane: exploration
     priority: 58
@@ -823,6 +1033,37 @@ profiles:
       min_quotes: 3
     enabled: true
     notes: French exploration works better with concrete urban-life anchors than with generic admiration
+
+  - id: pt_br_pt_word_choice_banter_explore
+    lane: exploration
+    priority: 72
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [br_pt]
+    language_lane: local_bridge
+    motif: object_anchor_banter
+    topic_pack: language_play
+    risk_tier: medium
+    expected_reply_driver: playful_examples
+    target_reply_min: 18
+    exclude_pack: [core_safe, banter_guard, language_guard]
+    archetype_tags: [banter, language_exchange, exploration]
+    topic_bucket: language
+    language_scope: [pt]
+    country_scope: [br, pt]
+    intent_tags: [exploration, portuguese, banter]
+    theme_tags: [banheiro, casa_de_banho, fila, comboio, trem, bolacha, biscoito]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Brasil OR brasileiro OR Portugal OR portugues) ("como voce chama" OR "como chamam" OR "quem fala" OR "voce diz") (banheiro OR "casa de banho" OR fila OR comboio OR trem OR bolacha OR biscoito OR refrigerante)) lang:pt -guerra -governo -eleicao'
+    gate_policy:
+      min_views: 8000
+      min_replies: 18
+      min_quotes: 2
+    enabled: true
+    notes: non-JP Portuguese word-choice debate improves local-bridge diversity and gives the selector another safe banter lane
 
   - id: ja_food_price_hot
     lane: bridge_candidate

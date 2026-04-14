@@ -1,0 +1,6 @@
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.egg-info/
+.agent-reach/profile-selection-state.json
