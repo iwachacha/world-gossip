@@ -20,13 +20,13 @@ WorldGossip の収集基盤は、単に「関連投稿を見つける」だけ�
 
 調査ブリーフ
 - 目的: WorldGossip 向けの X/Twitter 投稿を継続的かつ高鮮度で収集し、国際交流、比較、軽い議論、小競り合いが起きやすい投稿群を安定供給するための収集基盤を確立する。
-- 対象: 日本と他国の文化、生活、好み、誤解、比較、open question、軽い banter、スラング、言葉遊び、低 stakes な笑いを扱う公開 X/Twitter 投稿、およびそれに付随する reply、quote、thread 文脈。
-- 期待成果物: 実行可能な継続収集設計。query family、収集レーン、single-post / paired-post の使い分け、スケジュール、shortlist 条件、deep-read 条件、保存項目、改善指標を含む運用仕様。
+- 対象: 日本と他国の文化、生活、好み、誤解、比較、open question、軽い banter、スラング、言葉遊び、低 stakes な笑いを扱う公開 X/Twitter の root post。返信本文、quote 本文、thread 文脈そのものは対象にしない。
+- 期待成果物: 実行可能な継続収集設計。query family、収集レーン、single-post / paired-post の使い分け、スケジュール、shortlist 条件、root post refresh 条件、保存項目、改善指標を含む運用仕様。
 - 鮮度要件: 実運用では常に実行時点の最新投稿を優先する。特に `hot_trend` レーンは直近 0-6 時間、`live_conversation` は直近 24 時間、`bridge_candidate` は直近 7 日を主窓とする。
-- 含める範囲: discovery query 設計、言語別 query family、single-post completion 判定、トレンド追従方法、engagement ベースの host 側フィルタ、reply / quote を使った会話性評価、run metadata、evidence 保存、継続改善ループ。
+- 含める範囲: discovery query 設計、言語別 query family、single-post completion 判定、トレンド追従方法、engagement ベースの host 側フィルタ、root post の `views / replies / quotes` を使った会話性評価、run metadata、evidence 保存、継続改善ループ。
 - 除外範囲: 政治、戦争、宗教、排外主義、深刻な差別、スポーツ対立、センシティブ事件、一次収集と無関係な投稿生成ロジック、公開本文の詳細なコピーライティング。
 - 地域・言語: 出力は日本語。収集は `ja` と `en` を主軸にし、`ko` `zh` `es` `fr` `pt` を補助とする。初期国軸は日本、アメリカ、韓国、台湾、フランス、ドイツ、東南アジア、中南米の一部。初期運用は日本中心でよいが、中長期の主戦場は `en` とし、`en_hub` の回転率を最も高く保つ。
-- 重視ソース: `twitter search` を discovery、`twitter tweet` を shortlist deep-read として重視する。evidence ledger と host 側 metadata を必須で残す。
+- 重視ソース: `twitter search` を discovery の主軸にし、必要な場合だけ `twitter tweet` を root post refresh に使う。evidence ledger と host 側 metadata を必須で残す。
 - 禁止ソース: `web` や他 SNS への拡張、出所不明の転載、AI 生成ミラー、政治・歴史論争を主題とする投稿群。
 - 証拠厳密度: standard。run id、lane、query id、source role、evidence path を明記し、最終判断は host 側で行う。
 - 調査スケール: broad
@@ -37,7 +37,7 @@ WorldGossip の収集基盤は、単に「関連投稿を見つける」だけ�
 ### 3.1 収集は広く、判定は狭く
 
 - discovery は広く拾う
-- shortlist 後に deep-read する
+- shortlist 後に必要な場合だけ root post refresh を行う
 - review 前に絞り込みを重ねる
 
 ### 3.2 バズと会話性を分けて見る
@@ -479,6 +479,24 @@ enabled: true
 
 ## 7. host 側の二段ゲート
 
+### 7.0 pre-DB noise gate
+
+2026-04-15 JST の root-only 実測では、代表 5 query / 40 item の中に次が目立って混ざった。
+
+- `@` 始まりの reply-like post
+- `詳細はこちら` や短文リンクだけの link stub
+- news / media / official / promo 系の broadcast post
+- `views < 5000` の低 traction post
+- 国アンカーはあるが cross-country conversation seed がない post
+
+したがって、DB 保存前に少なくとも次を掛ける。
+
+- `text` または `title` が `@` で始まる post は破棄する
+- `詳細はこちら`、URL 主体、極端に短い本文の post は破棄する
+- 外部リンク主体で、質問・比較・roll-call・説明導線のない news / brand broadcast post は破棄する
+- `views < 5000` は lane に関係なく破棄する
+- 正規化後に country anchor と cross-country seed の両方が弱い post は破棄する
+
 ### 7.1 discovery gate
 
 query で完全に絞り込まず、取得後に host 側で次を見る。
@@ -594,36 +612,38 @@ shortlist は単一閾値ではなく lane score で見る。
 - `portfolio_gap_bonus` で未探索 bucket を毎回必ず混ぜる
 - brand 公式、報道、recommendation item は減点する
 
-## 8. deep-read ポリシー
+## 8. root refresh ポリシー
 
-### 8.1 deep-read 対象
+責任分界:
 
-`tweet` deep-read は次にだけ当てる。
+- ここは `WorldGossip` host 側の filter layer として持つ
+- `Agent Reach` は search transport と artifact 保持を担う薄い層として扱う
+- ただし将来 `reply/root 判定 metadata` を増やしたくなった場合は、`Agent Reach` か `twitter-cli` を project 内へ取り込んで拡張する余地がある
+- 初期 policy は [twitter_precision_policy.yml](/c:/WorldGossip/config/twitter_precision_policy.yml) を正本にし、実装は [filters.py](/c:/WorldGossip/src/worldgossip_twitter/filters.py) に寄せる
+
+### 8.1 root refresh 対象
+
+`tweet` は次にだけ当てる。
 
 - lane 上位候補
-- reply / quote が多い候補
-- 文脈を見ないと危険な候補
-- judge 前に reply の雰囲気を確認したい候補
+- `views` `replies` `quotes` の公開メトリクスを再確認したい候補
+- search で `engagement_complete=false` だった候補
 
-### 8.2 deep-read で保存するもの
+### 8.2 root refresh で保存するもの
 
 - root post
-- root author
 - root id
-- qualifying replies
-- quoted tweet
-- reply / quote の言語分布
-- 初期 reply の代表サンプル
-- recommendation noise 判定
+- 最新 engagement snapshot
+- media completeness
+- requested root URL
 
-### 8.3 noise 除去
+### 8.3 discard ルール
 
 少なくとも次を行う。
 
-- root author の reply を優先
-- `@root_author` 始まりの reply を優先
-- 入力 URL が reply や quote でも、`tweet` deep-read は親 thread root に正規化されることがあるため、`requested_url` と `resolved_root_id` を分けて保存する
-- 他スレッドに重複する item を noise 候補にする
+- 入力は root URL に限定する
+- `tweet` の返り値に複数 item が含まれても `requested root id` と一致する root post 以外はすべて破棄する
+- reply、quote、thread item、recommendation noise は保存しない
 - recommendation item は editorial unit 生成対象から除外する
 - brand 公式や報道リンク主体の item は discovery 参考扱いにする
 
@@ -649,16 +669,13 @@ shortlist は単一閾値ではなく lane score で見る。
 `source_role` は少なくとも次を持つ。
 
 - `search_result`
-- `deep_read_root`
-- `deep_read_reply`
-- `deep_read_quote`
-- `deep_read_noise`
+- `root_refresh`
 
 これにより、次が可能になる。
 
-- reply velocity の計算
 - 見逃しの補足
 - query family ごとの再発見率測定
+- root engagement の再観測
 - 同じ post の時間変化の追跡
 
 ## 10. スケジュールと予算
@@ -746,3 +763,35 @@ WorldGossip の収集基盤は、`query を増やす` こと自体が目的で�
 - `強い議論` だけでなく `広く好かれる軽交流投稿` も扱う
 - `きれいな文化比較` だけでなく `スラング・ダジャレ・しょうもない議論` も low-stakes に扱う
 - research journal に汎用知見と偏り記録を残す
+## 14. 2026-04-15 Precision Addendum
+
+- validated run:
+  - `22` enabled query profiles
+  - `172` seen posts
+  - `169` unique post ids
+  - `4` kept after dedupe plus full gating
+- bulk collection is now a four-step precision pipeline:
+  - query shaping
+  - generic pre-DB gate
+  - profile-aware threshold gate
+  - DB persist
+- generic pre-DB gate is responsible for removing:
+  - reply-like roots
+  - weak-conversation roots
+  - link stubs
+  - broadcast-like roots
+  - travel / destination / relocation prompts
+  - identity-validation prompts
+- profile-aware threshold gate is responsible for removing:
+  - `WorldGossip-fit but too small` roots
+  - roots below the profile's `min_views / min_replies / min_quotes`
+- dedupe rule:
+  - candidate evaluation and DB ingest both dedupe on `post_id`
+  - multi-query matches remain metadata, not separate ingest rows
+- collection artifact rule:
+  - Twitter/X search snippets should use at least `560` chars
+  - shorter snippets created false `missing_cross_country_seed`
+- bulk-safe disabled profiles remain:
+  - `en_europe_affinity_prompt_live`
+  - `en_latam_affinity_prompt_live`
+  - `en_translation_bridge_live`

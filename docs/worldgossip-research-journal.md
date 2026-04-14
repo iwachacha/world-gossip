@@ -364,3 +364,70 @@
 - `slang_wordplay x en_hub x standalone thread`
 - `slightly_dirty_euphemism x explanation-first thread`
 - `hybrid x single-post-first then later pairing`
+
+### 2026-04-15 | `worldgossip-precision-eval-20260415-batch2`
+
+#### Coverage
+
+- `22` enabled query profiles
+- `172` seen posts
+- `169` unique post ids after dedupe
+- `4` kept after generic pre-DB gate plus profile-aware gate
+- evidence: `.agent-reach/precision-eval-2026-04-15-batch2`
+
+#### Topic Skew
+
+- English staple lanes still return many root posts, but most are under the traction floor or too weak to survive profile gates
+- Japanese-origin lanes produced the cleanest survivors in this run, especially `wordplay`, `analysis`, and `cross-country invitation`
+- PT / ES / FR local-bridge lanes stopped failing on missing anchors after vocabulary expansion, but still remained sparse and low-traction
+
+#### Winning Archetypes
+
+- `bilateral_exchange x appreciation_prompt`
+- `slang_wordplay x explanation_thread`
+- `daily_life_analysis x cross-country comparison`
+- `cross-country invitation x Japanese-origin root`
+
+#### Risky Archetypes
+
+- `personal relocation planning`
+- `travel recommendation / destination promo`
+- `generic food question x low-traction`
+- `city-service exploration without an explicit invitation`
+
+#### Stable or Tentative Heuristics Added
+
+- stable: bulk precision should be applied in this order: `query shaping -> generic pre-DB gate -> profile-aware gate -> DB persist`
+- stable: dedupe by `post_id` before evaluation or ingest
+- tentative: `560`-char search snippets are a better precision baseline than `280` because question tails otherwise get truncated
+- stable: `compliment your culture` and similar identity-validation prompts should be dropped before DB
+- stable: `move to Japan` / travel-planning roots should be dropped before DB
+- tentative: frontier local-language lanes need dedicated PT / ES / FR seed lexicon before they should influence portfolio decisions
+
+#### Profile Actions
+
+- `keep`
+  - `en_jp_country_exchange_ama_live`
+  - `en_asia_affinity_prompt_live`
+  - `ja_en_wordplay_discovery_explore`
+  - `ja_fr_tw_interest_bridge`
+  - `ja_asia_affinity_prompt_explore`
+- `rotation`
+  - `en_jp_food_bridge`
+  - `en_jp_convenience_snack_question_live`
+  - `en_jp_story_bridge_explore`
+  - `en_jp_price_probe_bridge`
+- `guarded`
+  - `personal relocation planning`
+  - `tourism recommendation roots`
+- `keep disabled`
+  - `en_europe_affinity_prompt_live`
+  - `en_latam_affinity_prompt_live`
+  - `en_translation_bridge_live`
+
+#### Next Exploration Slices
+
+- `food question x high-traction prompt wording`
+- `PT / ES / FR x local-language question lexicon`
+- `infrastructure / price x object anchor`
+- `bilateral appreciation x concrete service or object anchor`

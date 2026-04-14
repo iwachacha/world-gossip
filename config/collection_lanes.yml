@@ -1,5 +1,18 @@
 version: 1
 
+# NOTE:
+# `deep_read_budget` is a legacy field name kept for compatibility with earlier notes.
+# In the current root-only policy, this should be read as the budget for `root_refresh`.
+
+pre_db_filters:
+  root_post_only: true
+  discard_reply_like_posts: true
+  discard_link_stub_posts: true
+  discard_external_news_or_brand_broadcast_posts: true
+  min_views_floor: 5000
+  require_country_anchor_after_normalization: true
+  require_cross_country_seed: true
+
 lanes:
   hot_trend:
     purpose: catch fast-rising buzz posts
@@ -14,7 +27,7 @@ lanes:
       min_reply_velocity_per_hour: 25
 
   live_conversation:
-    purpose: capture threads that already have active replies or quotes
+    purpose: capture root posts that already attract active replies or quotes
     window_hours: 24
     cadence_minutes: 120
     discovery_limit: 20

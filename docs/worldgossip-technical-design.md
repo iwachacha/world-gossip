@@ -64,7 +64,7 @@
 
 1. `collector`
    - `Agent Reach` を使い `twitter search` を実行する
-   - shortlist 後に `twitter tweet` deep-read を実行する
+   - shortlist 後に必要な場合だけ `twitter tweet` を root URL に対して実行し、root post 自体の engagement 完成度だけを補完する
 2. `ingestor`
    - 取得結果を正規化し、`posts` へ upsert する
 3. `normalizer`
@@ -96,7 +96,7 @@ jobs/
   normalize-and-tag
   embed-posts
   assemble-candidates
-  deep-read-shortlist
+  refresh-root-metrics
   judge-units
   observe-feedback
 
@@ -118,7 +118,7 @@ db/
 3. `normalize-and-tag`
 4. `embed-posts`
 5. `assemble-candidates`
-6. `deep-read-shortlist`
+6. `refresh-root-metrics`
 7. `judge-units`
 8. `review-and-publish`
 9. `observe-feedback`
@@ -128,6 +128,7 @@ db/
 - `query_profiles` に基づき `Agent Reach twitter search` を実行する
 - evidence は run 単位で保存する
 - 取得後に host 側で `views` `replies` `quotes` を二次評価する
+- 返信本文や quote 本文には立ち入らず、root post の公開 engagement だけを評価に使う
 - 収集は `hot_trend` `live_conversation` `bridge_candidate` `exploration` `recheck` の lane 単位で回す
 
 初期の強い query family は固定テーマとして凍結せず、次のような `会話トリガー` を優先して広く持つ。
@@ -142,11 +143,34 @@ db/
 
 ### 5.3 `ingest-posts`
 
+- `posts` に入れる前に pre-DB noise gate を通す
 - 取得 item を `posts` に upsert する
 - raw payload 全体は DB に持たず、必要最小限だけ JSON として持つ
 - evidence ledger への path を保持する
 - 一意キーは `(source_platform, source_post_id)` とする
 - 同時に `post_observations` に `どの run / lane / query で見つかったか` を記録する
+
+pre-DB noise gate では少なくとも次を除外する。
+
+- `@` 始まりの reply-like post
+- `詳細はこちら` や短すぎる URL stub のみの post
+- 外部リンク主体の news / brand broadcast post
+- `views < 5000` の低 traction post
+- 国アンカーや cross-country seed を欠く post
+
+この gate は `WorldGossip` host 側の責務として持つ。
+
+- `Agent Reach` は discovery transport と artifact ledger を担う薄い層として使う
+- `twitter search` の query だけで root-only を保証する設計は採用しない
+- DB に入れるかどうかの最終判定は常に host 側で行う
+- 将来的に `Agent Reach` を project 内へ取り込む場合も、主目的は ranking ではなく `reply/root 判定メタデータの追加露出` に置く
+
+初期実装の置き場所:
+
+- policy: [twitter_precision_policy.yml](/c:/WorldGossip/config/twitter_precision_policy.yml)
+- filter layer: [filters.py](/c:/WorldGossip/src/worldgossip_twitter/filters.py)
+- policy loader: [policy.py](/c:/WorldGossip/src/worldgossip_twitter/policy.py)
+- Agent Reach bridge: [agent_reach_bridge.py](/c:/WorldGossip/src/worldgossip_twitter/agent_reach_bridge.py)
 
 ### 5.4 `normalize-and-tag`
 
@@ -187,13 +211,12 @@ db/
 この 2 レールを統合し、`candidate_units` を作る。
 `candidate_units` は `assembly_mode` により `single_post` / `paired_post` / `hybrid` を表現する。
 
-### 5.7 `deep-read-shortlist`
+### 5.7 `refresh-root-metrics`
 
-- `editorial_score` 上位候補にだけ `twitter tweet` deep-read を当てる
-- root id と root author を保持する
-- root author reply を優先して取り込む
-- recommendation noise を除外する
-- deep-read で取得した root / reply / quote も必要に応じて `posts` と `post_observations` に取り込む
+- `editorial_score` 上位候補にだけ `twitter tweet` を root URL に対して当てる
+- 目的は root post の最新 engagement と media completeness の補完に限定する
+- 返却 item のうち `requested root id` と一致する root post だけを保持する
+- 返信、quote、thread item、recommendation noise は保存対象にしない
 
 ### 5.8 `judge-units`
 
@@ -335,10 +358,7 @@ db/
 `source_role` は少なくとも次を持つ。
 
 - `search_result`
-- `deep_read_root`
-- `deep_read_reply`
-- `deep_read_quote`
-- `deep_read_noise`
+- `root_refresh`
 
 ### 6.6 `candidate_units`
 
@@ -524,7 +544,7 @@ editorial_score =
 - 国タグ
 - retrieval / editorial score
 - assembly mode
-- 必要に応じて deep-read で得た短い文脈
+- 必要に応じて root refresh で補完した engagement snapshot
 
 ### 9.3 出力契約
 
@@ -561,7 +581,7 @@ editorial_score =
 - lane と query profile
 - 危険フラグ
 - 参照元 URL
-- deep-read の補足文脈
+- root post の engagement snapshot
 
 ### 10.2 操作項目
 
@@ -716,3 +736,29 @@ WorldGossip の実装は、`FastAPI を運用中枢に置き、Supabase を検�
 - 会話を起こす編集品質
 - 少額課金で得られる多言語検索精度
 - human-in-the-loop による安全性
+## 17. 2026-04-15 Precision Addendum
+
+- broad validation run:
+  - `22` query profiles
+  - `172` seen posts
+  - `169` unique post ids
+  - `4` kept after full gating
+- validated ingest order:
+  - Agent Reach artifact save
+  - bridge to `SearchPost`
+  - dedupe by `post_id`
+  - generic pre-DB gate
+  - profile-aware gate from `query_profiles.yml`
+  - DB persist
+- `profile-aware gate` is part of the technical design, not just an evaluation helper
+  - per-profile `min_views`
+  - per-profile `min_replies`
+  - per-profile `min_quotes`
+- search collection should use `item-text-max-chars >= 560`
+  - `280` chars cut off some valid question tails and caused false `missing_cross_country_seed`
+- required concept guards before DB:
+  - identity-validation prompts such as `compliment your culture`
+  - travel / destination / relocation prompts such as `move to Japan`
+- validated role split:
+  - Agent Reach stays the thin collector and evidence transport
+  - WorldGossip owns dedupe, precision gating, and DB safety
