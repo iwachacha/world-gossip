@@ -1,0 +1,972 @@
+version: 5
+
+defaults:
+  channel: twitter
+  operation: search
+  blocked_topics:
+    - politics
+    - war
+    - religion
+    - xenophobia
+    - severe_discrimination
+  blocked_terms:
+    - election
+    - government
+    - immigration
+    - migrant
+    - refugee
+    - military
+    - base
+    - protest
+    - 基地問題
+    - 移民
+    - 政治
+    - 戦争
+    - 歴史
+    - 宗教
+    - 差別
+  require_country_anchor: true
+
+learning_policy:
+  learn_structures_not_themes: true
+  keep_negative_findings: true
+  stable_promotion_rule:
+    min_confirmed_runs: 2
+    allow_exceptional_single_run: true
+
+portfolio_targets:
+  treat_targets_as_soft_constraints: true
+  max_shortlist_share_by_topic_bucket:
+    food: 0.25
+    daily_life: 0.25
+    culture: 0.20
+  min_weekly_shortlists_by_topic_bucket:
+    infrastructure: 2
+    language: 2
+    customs: 2
+    story: 2
+    humor: 1
+  batch_rules:
+    max_same_topic_bucket: 2
+    min_distinct_topic_buckets: 4
+    min_distinct_archetypes: 3
+    require_frontier_profile: true
+  exploration_mix:
+    staple: 0.50
+    archetype_expansion: 0.30
+    frontier: 0.20
+  language_lane_mix:
+    en_hub: 0.55
+    ja_seed: 0.30
+    local_bridge: 0.15
+  region_rotation:
+    min_weekly_active_clusters: 4
+    preferred_clusters:
+      - east_asia
+      - southeast_asia
+      - europe
+      - latam
+      - anglosphere
+
+family_management:
+  dimensions:
+    - country_pairs
+    - language_lane
+    - motif
+    - topic_pack
+    - risk_tier
+    - assembly_mode
+  assembly_modes:
+    single_post: the post itself already contains the cross-country conversation seed.
+    paired_post: editorial value appears mainly after matching two posts.
+    hybrid: the post can work alone or become stronger after pairing.
+  language_lanes:
+    en_hub: English-first discovery for the long-term English-speaking audience.
+    ja_seed: Japanese-origin seeds that can still trigger bilingual or bridged discussion in the early phase.
+    local_bridge: Local-language probes used mainly to widen country coverage and feed later English editorial use.
+  motifs:
+    mutual_question: answerable question that gives the target country an easy way to reply.
+    local_life_affinity: soft admiration grounded in ordinary routines or shared commonality.
+    localization_compare: same product, chain, or format adapted differently across countries.
+    slang_wordplay: slang, euphemism, phrase meaning, and word-choice confusion that can become playful discussion.
+    price_probe: cost, quantity, or household-price comparison that expands into daily-life differences.
+    object_anchor_banter: low-stakes banter tied to a concrete object, phrase, or habit instead of nationality alone.
+    self_contained_roll_call: a single post that invites many countries to answer in the same thread.
+  topic_packs:
+    food_localization: [snack, chain_menu, packaging, convenience, flavor]
+    home_costs: [grocery, kitchen, appliance, utilities, household_goods]
+    language_play: [slang, phrase, euphemism, pun, word_choice]
+    city_service: [transport, queue, toilet, delivery, convenience]
+    shared_daily_life: [routine, school, work, neighborhood, hobby]
+    low_stakes_humor: [dad_joke, innuendo, slang, toilet_words, silly_debate]
+  risk_tiers:
+    low: concrete, answerable, and rarely adjacent to politics or grievance.
+    medium: useful but needs stronger query anchors and host filtering.
+    guarded: only run with explicit review because drift into ideology, mockery, or identity talk is common.
+  exclude_packs:
+    core_safe: [politics, war, religion, immigration, severe_discrimination]
+    affinity_guard: ["proud of your country", "superior culture", "shame culture", "social norms"]
+    banter_guard: [foreigner, race, blood, iq, civilized, purity, invasion, colonize]
+    language_guard: [history, religion, geopolitics, slur, fandom_war]
+
+profiles:
+  - id: en_jp_food_bridge
+    lane: bridge_candidate
+    priority: 100
+    maturity: proven
+    portfolio_role: staple
+    country_pairs: [jp_us, jp_gb, jp_au, jp_ca]
+    language_lane: en_hub
+    motif: localization_compare
+    topic_pack: food_localization
+    risk_tier: low
+    expected_reply_driver: recommendation_pile_on
+    target_reply_min: 35
+    exclude_pack: [core_safe]
+    archetype_tags: [recommendation_request, comparison_prompt, bridge_candidate]
+    topic_bucket: food
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [food, comparison, bridge_candidate]
+    theme_tags: [food, snacks, convenience, daily_life]
+    window_hours: 168
+    cadence_minutes: 360
+    discovery_limit: 24
+    deep_read_budget: 4
+    query_template: '(Japan OR Japanese) (food OR snack OR dessert OR bakery OR convenience OR konbini) (favorite OR amazing OR better OR different) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 20000
+      min_replies: 35
+      min_quotes: 5
+    enabled: true
+    notes: proven staple, but must stay under the food share cap
+
+  - id: en_jp_country_exchange_ama_live
+    lane: live_conversation
+    priority: 98
+    maturity: proven
+    portfolio_role: staple
+    archetype_tags: [bilateral_exchange, ama, conversation_start]
+    topic_bucket: daily_life
+    language_scope: [en]
+    country_scope: [jp, gb, us]
+    intent_tags: [ama, cross_country, conversation_start]
+    theme_tags: [daily_life, culture, question]
+    window_hours: 72
+    cadence_minutes: 240
+    discovery_limit: 24
+    deep_read_budget: 4
+    query_template: '(Japan OR Japanese) (Britain OR British OR America OR American) (ask OR question OR AMA OR culture OR daily) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 20000
+      min_replies: 60
+      min_quotes: 6
+    enabled: true
+    notes: strongest clean bilateral exchange archetype
+
+  - id: en_jp_appreciation_prompt_live
+    lane: live_conversation
+    priority: 96
+    maturity: proven
+    portfolio_role: staple
+    country_pairs: [jp_us, jp_gb]
+    language_lane: en_hub
+    motif: mutual_question
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: bilateral_answers
+    target_reply_min: 80
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [appreciation_prompt, identity_exchange, conversation_start]
+    topic_bucket: culture
+    language_scope: [en]
+    country_scope: [jp, us, gb]
+    intent_tags: [appreciation, prompt, cross_country]
+    theme_tags: [culture, admiration, daily_life]
+    window_hours: 48
+    cadence_minutes: 180
+    discovery_limit: 24
+    deep_read_budget: 4
+    query_template: '(Japan OR Japanese) (America OR American OR Britain OR British) ("what do you like about" OR "what do you appreciate about" OR "what would you show" OR "what do you wish we had") lang:en -war -government -election -immigration -history'
+    gate_policy:
+      min_views: 5000
+      min_replies: 80
+      min_quotes: 8
+    enabled: true
+    notes: proven when the ask is explicitly bilateral and answerable; removed broad pride and compliment wording after round2 drift
+
+  - id: en_asia_affinity_prompt_live
+    lane: live_conversation
+    priority: 95
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_kr, jp_tw, jp_th, jp_sg, jp_ph, jp_id, jp_vn]
+    language_lane: en_hub
+    motif: mutual_question
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: bilateral_answers
+    target_reply_min: 20
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [light_affinity_prompt, appreciation_prompt, conversation_start]
+    topic_bucket: culture
+    language_scope: [en]
+    country_scope: [jp, kr, tw, th, sg, ph, id, vn]
+    intent_tags: [affinity, appreciation, cross_country]
+    theme_tags: [culture, daily_life, service, citylife]
+    window_hours: 72
+    cadence_minutes: 240
+    discovery_limit: 24
+    deep_read_budget: 3
+    query_template: '((Japan OR Japanese OR Korea OR Korean OR Taiwan OR Taiwanese OR Thailand OR Thai OR Singapore OR Singaporean OR Philippines OR Filipino OR Indonesia OR Indonesian OR Vietnam OR Vietnamese) ("what do you like about" OR "what is one thing you like about" OR "what do you appreciate about" OR "what surprised you about")) lang:en -war -government -election -immigration -history -religion'
+    gate_policy:
+      min_views: 8000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: keep live only for explicit mutual-appreciation questions; remove compliment-your-culture phrasing because it drifted into self-congratulation and stereotype talk
+
+  - id: en_europe_affinity_prompt_live
+    lane: bridge_candidate
+    priority: 88
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_gb, jp_fr, jp_de, jp_nl, jp_se, jp_it, jp_es]
+    language_lane: en_hub
+    motif: local_life_affinity
+    topic_pack: city_service
+    risk_tier: medium
+    expected_reply_driver: object_examples
+    target_reply_min: 20
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [light_affinity_prompt, appreciation_prompt, bridge_candidate]
+    topic_bucket: culture
+    language_scope: [en]
+    country_scope: [gb, fr, it, es, de, nl, se]
+    intent_tags: [affinity, appreciation, cross_country]
+    theme_tags: [culture, daily_life, citylife, service, language]
+    window_hours: 168
+    cadence_minutes: 480
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR Britain OR British OR England OR France OR French OR Italy OR Italian OR Spain OR Spanish OR Germany OR German OR Netherlands OR Dutch OR Sweden OR Swedish) (city OR service OR cafe OR queue OR train OR grocery OR bakery OR language OR phrase OR neighborhood) ("what do you like about" OR "what surprised you about" OR "wish we had" OR different)) lang:en -war -government -election -immigration -history'
+    gate_policy:
+      min_views: 8000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: move Europe from generic national-trait praise toward concrete city, service, and language anchors
+
+  - id: en_latam_affinity_prompt_live
+    lane: exploration
+    priority: 60
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_mx, jp_br, jp_ar, jp_cl, jp_co, jp_pe]
+    language_lane: en_hub
+    motif: local_life_affinity
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: object_examples
+    target_reply_min: 20
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [light_affinity_prompt, appreciation_prompt, bridge_candidate]
+    topic_bucket: culture
+    language_scope: [en]
+    country_scope: [mx, br, ar, cl, co, pe]
+    intent_tags: [affinity, appreciation, cross_country]
+    theme_tags: [culture, daily_life, citylife, service, routine]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR Mexico OR Mexican OR Brazil OR Brazilian OR Argentina OR Argentinian OR Chile OR Chilean OR Colombia OR Colombian OR Peru OR Peruvian) (city OR service OR routine OR neighborhood OR cafe OR market OR language OR slang) ("what do you like about" OR "what surprised you about" OR "wish we had" OR different)) lang:en -war -government -election -immigration -history'
+    gate_policy:
+      min_views: 8000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: keep as an English hub probe only when tied to Japan plus local-life anchors; generic English LatAm praise stayed too sparse in round2
+
+  - id: en_jp_surprise_prompt_hot
+    lane: hot_trend
+    priority: 94
+    maturity: proven
+    portfolio_role: staple
+    archetype_tags: [surprise_prompt, curiosity_prompt, discovery]
+    topic_bucket: daily_life
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [surprise, curiosity, discovery]
+    theme_tags: [travel, daily_life, service]
+    window_hours: 24
+    cadence_minutes: 120
+    discovery_limit: 24
+    deep_read_budget: 3
+    query_template: '(Japan OR Japanese) (surprised OR unexpected OR impressed) ("daily life" OR routine OR service OR neighborhood OR visit) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 50000
+      min_replies: 30
+      min_quotes: 8
+    enabled: true
+    notes: good fast-discovery staple, but needs density checks
+
+  - id: en_jp_convenience_snack_question_live
+    lane: live_conversation
+    priority: 90
+    maturity: proven
+    portfolio_role: staple
+    archetype_tags: [recommendation_request, live_question, conversation_start]
+    topic_bucket: food
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [question, recommendation, conversation_start]
+    theme_tags: [convenience, snacks, desserts, daily_life]
+    window_hours: 72
+    cadence_minutes: 180
+    discovery_limit: 20
+    deep_read_budget: 4
+    query_template: '(Japan OR Japanese OR konbini OR 7-11 OR FamilyMart OR Lawson) (snack OR dessert OR sandwich OR custard OR chicken) (what OR best OR buy OR favorite OR recommend) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 8000
+      min_replies: 50
+      min_quotes: 4
+    enabled: true
+    notes: proven staple, but do not add more food-only variants unless other buckets also win
+
+  - id: en_translation_bridge_live
+    lane: bridge_candidate
+    priority: 84
+    maturity: tentative
+    portfolio_role: archetype_expansion
+    country_pairs: [jp_us, jp_gb, jp_fr, jp_pt]
+    language_lane: en_hub
+    motif: slang_wordplay
+    topic_pack: language_play
+    risk_tier: medium
+    expected_reply_driver: explain_then_compare
+    target_reply_min: 25
+    exclude_pack: [core_safe, language_guard]
+    archetype_tags: [translation_relay, multi_country_conversation, bridge_candidate]
+    topic_bucket: language
+    language_scope: [en]
+    country_scope: [jp, us, gb, pt, fr]
+    intent_tags: [translation_bridge, multi_country, conversation]
+    theme_tags: [translation, language, culture, internet]
+    window_hours: 72
+    cadence_minutes: 360
+    discovery_limit: 20
+    deep_read_budget: 3
+    query_template: '(Japan OR Japanese) (translate OR translated OR translation OR phrase OR expression) (America OR American OR Britain OR British OR Portuguese OR French) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 15000
+      min_replies: 25
+      min_quotes: 5
+    enabled: true
+    notes: keep with extra safety screening before shortlist
+
+  - id: en_jp_story_bridge_explore
+    lane: exploration
+    priority: 82
+    maturity: tentative
+    portfolio_role: archetype_expansion
+    archetype_tags: [story_seed, memory_exchange, bridge_candidate]
+    topic_bucket: story
+    language_scope: [en]
+    country_scope: [jp, us]
+    intent_tags: [story, memory, bridge_candidate]
+    theme_tags: [music, memory, travel, friendship]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(Japan OR Japanese OR America OR American) (story OR memory OR moment OR experience) (music OR school OR travel OR friendship OR culture) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 20000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: keep as the main story archetype probe
+
+  - id: en_jp_daily_routine_compare_explore
+    lane: exploration
+    priority: 78
+    maturity: experimental
+    portfolio_role: archetype_expansion
+    archetype_tags: [comparison_prompt, surprise_prompt, bridge_candidate]
+    topic_bucket: daily_life
+    language_scope: [en]
+    country_scope: [jp, us, gb]
+    intent_tags: [daily_life, comparison, exploration]
+    theme_tags: [routine, apartment, shopping, commute]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(Japan OR Japanese OR America OR American OR Britain OR British) ("daily life" OR routine OR apartment OR laundry OR shopping OR commute) (different OR surprised OR easier OR harder OR funny) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 12000
+      min_replies: 25
+      min_quotes: 3
+    enabled: true
+    notes: generic archetype expansion away from food
+
+  - id: en_jp_infrastructure_reaction_hot
+    lane: bridge_candidate
+    priority: 76
+    maturity: experimental
+    portfolio_role: archetype_expansion
+    archetype_tags: [surprise_prompt, service_reaction, bridge_candidate]
+    topic_bucket: infrastructure
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [infrastructure, surprise, exploration]
+    theme_tags: [train, station, toilet, delivery, transit, vending_machine]
+    window_hours: 72
+    cadence_minutes: 360
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(Japan OR Japanese) (train OR station OR toilet OR delivery OR transit OR vending machine OR ticket gate OR metro) ("I just saw" OR surprised OR impressed OR wish OR "mind blowing" OR different) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 15000
+      min_replies: 25
+      min_quotes: 4
+    enabled: true
+    notes: broad-appeal bridge bucket; round2 showed low reply velocity but useful matchable admiration and explanation threads
+
+  - id: en_jp_language_learning_prompt_live
+    lane: exploration
+    priority: 68
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_us, jp_gb]
+    language_lane: en_hub
+    motif: slang_wordplay
+    topic_pack: language_play
+    risk_tier: medium
+    expected_reply_driver: answer_then_compare
+    target_reply_min: 35
+    exclude_pack: [core_safe, language_guard]
+    archetype_tags: [language_exchange, explanation_prompt, conversation_start]
+    topic_bucket: language
+    language_scope: [en]
+    country_scope: [jp, us, gb]
+    intent_tags: [language, learning, conversation]
+    theme_tags: [phrase, expression, learning, translation, slang]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '("favorite Japanese word" OR "favorite English word" OR "how do you say this in Japanese" OR "how do you say this in English" OR "what does this phrase mean in Japanese" OR "what does this phrase mean in English" OR "what do Japanese call this" OR "what do Americans call this") lang:en -war -government -election -immigration -history'
+    gate_policy:
+      min_views: 8000
+      min_replies: 35
+      min_quotes: 4
+    enabled: true
+    notes: keep answerable word or phrase prompts; phrase-level wording performs better than broad language-learning chatter
+
+  - id: en_jp_customs_microculture_explore
+    lane: exploration
+    priority: 72
+    maturity: experimental
+    portfolio_role: frontier
+    archetype_tags: [microculture_observation, surprise_prompt, bridge_candidate]
+    topic_bucket: customs
+    language_scope: [en]
+    country_scope: [jp, us, gb]
+    intent_tags: [customs, etiquette, exploration]
+    theme_tags: [habit, etiquette, manners, unwritten_rules]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(Japan OR Japanese) ("I learned in Japan" OR "interesting thing about Japan" OR "small thing in Japan" OR "one thing Japan does") (habit OR etiquette OR manners OR custom OR rule OR "unwritten rule") (interesting OR nice OR surprising OR useful) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 10000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: favor positive or curious micro-observations; the older query over-collected complaints and generic manners talk
+
+  - id: en_jp_hobby_bridge_explore
+    lane: exploration
+    priority: 78
+    maturity: experimental
+    portfolio_role: frontier
+    archetype_tags: [recommendation_request, appreciation_prompt, bridge_candidate]
+    topic_bucket: hobby
+    language_scope: [en]
+    country_scope: [jp, us, gb]
+    intent_tags: [hobby, entertainment, bridge_candidate]
+    theme_tags: [music, film, anime, game, photography]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(Japan OR Japanese OR America OR American OR British) (music OR film OR anime OR game OR photography OR hobby) (favorite OR discovered OR recommend OR appreciate) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 10000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: strongest non-food frontier in round2; hobby constraints and participatory prompts produced reusable bridge material
+
+  - id: en_jp_slang_wordplay_bridge_explore
+    lane: exploration
+    priority: 80
+    maturity: experimental
+    portfolio_role: frontier
+    editorial_modes: [single_post, paired_post]
+    country_pairs: [jp_us, jp_gb, jp_au, jp_ca]
+    language_lane: en_hub
+    motif: slang_wordplay
+    topic_pack: language_play
+    risk_tier: medium
+    expected_reply_driver: answer_then_compare
+    target_reply_min: 30
+    exclude_pack: [core_safe, language_guard]
+    archetype_tags: [language_exchange, comparison_prompt, bridge_candidate]
+    topic_bucket: language
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [language, slang, bridge_candidate]
+    theme_tags: [slang, phrase, euphemism, word_choice, wordplay]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 18
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR America OR American OR Britain OR British OR Australia OR Australian OR Canada OR Canadian) ("what do you call" OR "what does this mean" OR "how do you say" OR slang OR phrase OR expression OR euphemism OR pun OR wordplay) ("in Japan" OR "in Japanese" OR "in America" OR "in British English" OR "in Australia")) lang:en -war -government -election -immigration -history -religion'
+    gate_policy:
+      min_views: 10000
+      min_replies: 30
+      min_quotes: 3
+    enabled: true
+    notes: English-first seed for slang, euphemism, and word-choice posts; keep prompts concrete enough that replies become examples instead of ideology
+
+  - id: en_global_rollcall_conversation_live
+    lane: live_conversation
+    priority: 81
+    maturity: experimental
+    portfolio_role: frontier
+    editorial_modes: [single_post]
+    country_pairs: [global_en]
+    language_lane: en_hub
+    motif: self_contained_roll_call
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: roll_call_examples
+    target_reply_min: 45
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [multi_country_conversation, conversation_start, bridge_candidate]
+    topic_bucket: daily_life
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca, ie, nz, sg, ph, in, fr, de, mx, br]
+    intent_tags: [single_post, multi_country, conversation_start]
+    theme_tags: [daily_life, slang, routine, food, citylife, service]
+    window_hours: 72
+    cadence_minutes: 240
+    discovery_limit: 20
+    deep_read_budget: 3
+    query_template: '(("where are you from and" OR "tell me where you are from and" OR "people from different countries" OR "drop your country and") ("what do you call" OR "what is normal" OR "what is your version of" OR "what do you eat for" OR "what time do you")) (snack OR breakfast OR queue OR commute OR slang OR phrase OR convenience store OR lunch OR toilet) lang:en -war -government -election -immigration -history -religion'
+    gate_policy:
+      min_views: 12000
+      min_replies: 45
+      min_quotes: 4
+    enabled: true
+    notes: explicit roll-call threads can stand alone without pairing and are useful when many countries are already participating in one place
+
+  - id: ja_en_wordplay_discovery_explore
+    lane: exploration
+    priority: 70
+    maturity: experimental
+    portfolio_role: frontier
+    editorial_modes: [single_post, paired_post]
+    country_pairs: [jp_us, jp_gb]
+    language_lane: ja_seed
+    motif: slang_wordplay
+    topic_pack: low_stakes_humor
+    risk_tier: medium
+    expected_reply_driver: explain_then_compare
+    target_reply_min: 20
+    exclude_pack: [core_safe, language_guard]
+    archetype_tags: [language_exchange, cross_country_interest, bridge_candidate]
+    topic_bucket: humor
+    language_scope: [ja]
+    country_scope: [jp, us, gb]
+    intent_tags: [humor, slang, cross_country]
+    theme_tags: [wordplay, slang, dad_joke, innuendo, euphemism]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(英語 OR 英語圏 OR アメリカ OR イギリス) (スラング OR 言い回し OR 言葉遊び OR ダジャレ OR 下ネタ OR 婉曲表現 OR なんて言う) (日本語 OR 日本 OR 英語) lang:ja -政治 -戦争 -移民 -基地問題 -差別'
+    gate_policy:
+      min_views: 8000
+      min_replies: 20
+      min_quotes: 2
+    enabled: true
+    notes: Japanese-origin curiosity about English slang or silly expressions can become either standalone discussion or later editorial pairing
+
+  - id: en_jp_price_probe_bridge
+    lane: bridge_candidate
+    priority: 79
+    maturity: experimental
+    portfolio_role: archetype_expansion
+    country_pairs: [jp_us, jp_gb, jp_au, jp_ca]
+    language_lane: en_hub
+    motif: price_probe
+    topic_pack: home_costs
+    risk_tier: low
+    expected_reply_driver: compare_receipts
+    target_reply_min: 25
+    exclude_pack: [core_safe]
+    archetype_tags: [comparison_prompt, recommendation_request, bridge_candidate]
+    topic_bucket: daily_life
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [price_gap, daily_life, bridge_candidate]
+    theme_tags: [grocery, kitchen, appliance, household_goods, utilities]
+    window_hours: 168
+    cadence_minutes: 480
+    discovery_limit: 18
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR America OR American OR Britain OR British OR Canada OR Canadian OR Australia OR Australian) ("how much" OR price OR cost OR expensive OR cheap OR groceries OR kitchen OR appliance OR rent OR utility) (compare OR "in Japan" OR "in America" OR "where you live")) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 12000
+      min_replies: 25
+      min_quotes: 3
+    enabled: true
+    notes: safe non-food expansion for cost-of-living and household comparison threads
+
+  - id: en_jp_localized_chain_compare_explore
+    lane: exploration
+    priority: 77
+    maturity: experimental
+    portfolio_role: archetype_expansion
+    country_pairs: [jp_us, jp_gb]
+    language_lane: en_hub
+    motif: localization_compare
+    topic_pack: food_localization
+    risk_tier: low
+    expected_reply_driver: compare_variants
+    target_reply_min: 20
+    exclude_pack: [core_safe]
+    archetype_tags: [comparison_prompt, bridge_candidate, recommendation_request]
+    topic_bucket: daily_life
+    language_scope: [en]
+    country_scope: [jp, us, gb]
+    intent_tags: [localization, comparison, bridge_candidate]
+    theme_tags: [chain_menu, packaging, snacks, convenience, fast_food]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Japan OR Japanese OR America OR American OR Britain OR British) ("McDonald''s" OR KFC OR KitKat OR Oreo OR "7-11" OR convenience OR chips OR crisps OR soda) (version OR menu OR flavor OR packaging OR adapted OR local)) lang:en -war -government -election -immigration'
+    gate_policy:
+      min_views: 10000
+      min_replies: 20
+      min_quotes: 4
+    enabled: true
+    notes: shared-brand localization is safer than broad nation-trait comparison and travels well into English-speaking conversation
+
+  - id: pt_jp_local_life_affinity_explore
+    lane: exploration
+    priority: 62
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_br]
+    language_lane: local_bridge
+    motif: local_life_affinity
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: shared_examples
+    target_reply_min: 18
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [light_affinity_prompt, appreciation_prompt, bridge_candidate]
+    topic_bucket: daily_life
+    language_scope: [pt]
+    country_scope: [jp, br]
+    intent_tags: [exploration, brazil, bridge_candidate]
+    theme_tags: [vida_diaria, cidade, servico, rotina, cultura]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Japao OR Japão OR japones OR japonesa) ("vida diaria" OR "vida diária" OR cidade OR servico OR rotina OR costume) (curioso OR interessante OR diferente OR gosto OR admiro)) lang:pt -guerra -governo -eleicao'
+    gate_policy:
+      min_views: 8000
+      min_replies: 18
+      min_quotes: 2
+    enabled: true
+    notes: Brazil is better approached through Portuguese local-life curiosity than through thin English-only affinity phrases
+
+  - id: ja_fr_tw_interest_bridge
+    lane: exploration
+    priority: 65
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_fr, jp_tw, jp_de, jp_us]
+    language_lane: ja_seed
+    motif: local_life_affinity
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: answer_then_compare
+    target_reply_min: 20
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [appreciation_prompt, cross_country_interest, bridge_candidate]
+    topic_bucket: culture
+    language_scope: [ja]
+    country_scope: [jp, fr, tw, de, us]
+    intent_tags: [admiration, bridge_candidate, cross_country]
+    theme_tags: [culture, daily_life, travel, language]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(フランス OR 台湾 OR ドイツ OR アメリカ) (日本 OR 日本人) (文化 OR 暮らし OR 習慣 OR 言葉 OR 街) (好き OR 面白い OR 驚いた OR 意外) lang:ja -政治 -戦争 -移民 -基地問題 -差別'
+    gate_policy:
+      min_views: 12000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: keep non-food Japanese-origin exploration alive
+
+  - id: ja_asia_affinity_prompt_explore
+    lane: exploration
+    priority: 63
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_kr, jp_tw, jp_th, jp_vn, jp_id, jp_ph, jp_in]
+    language_lane: ja_seed
+    motif: local_life_affinity
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: answer_then_compare
+    target_reply_min: 20
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [light_affinity_prompt, appreciation_prompt, bridge_candidate]
+    topic_bucket: culture
+    language_scope: [ja]
+    country_scope: [jp, kr, tw, th, vn, id, ph, in]
+    intent_tags: [affinity, admiration, cross_country]
+    theme_tags: [culture, daily_life, service, citylife]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(韓国 OR 台湾 OR タイ OR ベトナム OR インドネシア OR フィリピン OR インド) (好き OR 良い OR いいな OR 面白い OR うらやましい) (文化 OR 暮らし OR 街 OR 習慣 OR 言葉) lang:ja -政治 -戦争 -移民 -基地問題 -差別'
+    gate_policy:
+      min_views: 10000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: Japanese-origin simple affinity prompts for broader Asia coverage
+
+  - id: es_jp_latam_explore
+    lane: exploration
+    priority: 60
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_mx, jp_ar, jp_cl, jp_pe]
+    language_lane: local_bridge
+    motif: local_life_affinity
+    topic_pack: shared_daily_life
+    risk_tier: medium
+    expected_reply_driver: shared_examples
+    target_reply_min: 20
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [light_affinity_prompt, comparison_prompt, exploration]
+    topic_bucket: daily_life
+    language_scope: [es]
+    country_scope: [jp, mx, ar, cl, pe]
+    intent_tags: [exploration, latam, admiration]
+    theme_tags: [culture, citylife, language, daily_life, service]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Japon OR japones OR japonesa) ("vida diaria" OR ciudad OR servicio OR costumbre OR rutina OR idioma) (curioso OR interesante OR diferente OR "me gusta" OR "me sorprende")) lang:es -guerra -gobierno -eleccion'
+    gate_policy:
+      min_views: 12000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: use Spanish local-life curiosity instead of broad admiration so LatAm can feed bridge candidates more reliably
+
+  - id: fr_jp_culture_explore
+    lane: exploration
+    priority: 58
+    maturity: experimental
+    portfolio_role: frontier
+    country_pairs: [jp_fr]
+    language_lane: local_bridge
+    motif: local_life_affinity
+    topic_pack: city_service
+    risk_tier: medium
+    expected_reply_driver: object_examples
+    target_reply_min: 20
+    exclude_pack: [core_safe, affinity_guard]
+    archetype_tags: [comparison_prompt, microculture_observation, exploration]
+    topic_bucket: customs
+    language_scope: [fr]
+    country_scope: [jp, fr]
+    intent_tags: [exploration, culture_question, comparison]
+    theme_tags: [habits, daily_life, transport, language, service]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '((Japon OR japonais) (quotidien OR transport OR service OR langue OR file OR supérette OR quartier) (surprenant OR interessant OR curieux OR pratique OR different)) lang:fr -guerre -gouvernement -election'
+    gate_policy:
+      min_views: 12000
+      min_replies: 20
+      min_quotes: 3
+    enabled: true
+    notes: French exploration works better with concrete urban-life anchors than with generic admiration
+
+  - id: ja_food_price_hot
+    lane: bridge_candidate
+    priority: 40
+    maturity: proven
+    portfolio_role: rotation
+    archetype_tags: [comparison_prompt, recommendation_request, bridge_candidate]
+    topic_bucket: food
+    language_scope: [ja]
+    country_scope: [jp, us, fr, tw]
+    intent_tags: [comparison, daily_life, food_price]
+    theme_tags: [food, sweets, price, comparison]
+    window_hours: 72
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    query_template: '(アメリカ OR フランス OR 台湾) (日本 OR 日本人) (値段 OR 食べ物 OR BBQ OR 物価 OR 高い OR 安い) lang:ja -政治 -戦争 -移民 -基地問題 -差別'
+    gate_policy:
+      min_views: 25000
+      min_replies: 30
+      min_quotes: 4
+    enabled: false
+    notes: strong but intentionally rotated out until portfolio balance improves
+
+  - id: ja_us_open_question_hot
+    lane: hot_trend
+    priority: 20
+    maturity: guarded
+    portfolio_role: guarded
+    archetype_tags: [open_question, cross_country, guarded]
+    topic_bucket: daily_life
+    language_scope: [ja]
+    country_scope: [jp, us]
+    intent_tags: [guarded, open_question, cross_country]
+    theme_tags: [culture, daily_life]
+    window_hours: 24
+    cadence_minutes: 720
+    discovery_limit: 12
+    deep_read_budget: 1
+    query_template: '(アメリカ OR アメリカ人) (なぜ OR どうして OR なんで) (日本 OR 日本人) lang:ja -政治 -戦争 -移民 -基地問題 -差別'
+    gate_policy:
+      min_views: 100000
+      min_replies: 120
+      min_quotes: 15
+    enabled: false
+    notes: guarded; round1 drifted into politics and base discourse
+
+  - id: ja_people_reference_live
+    lane: live_conversation
+    priority: 15
+    maturity: guarded
+    portfolio_role: guarded
+    archetype_tags: [people_reference, admiration, guarded]
+    topic_bucket: identity
+    language_scope: [ja]
+    country_scope: [jp, us, kr, tw, fr, de]
+    intent_tags: [guarded, people_reference, admiration, question]
+    theme_tags: [culture, identity, impression]
+    window_hours: 24
+    cadence_minutes: 720
+    discovery_limit: 12
+    deep_read_budget: 1
+    query_template: '(アメリカ人 OR 韓国人 OR 台湾人 OR フランス人 OR ドイツ人) (日本 OR 日本人) (好き OR 面白い OR どうして) lang:ja -政治 -戦争 -基地問題 -差別'
+    gate_policy:
+      min_views: 50000
+      min_replies: 120
+      min_quotes: 15
+    enabled: false
+    notes: guarded; repeatedly drifted into nationalist and grievance posts
+
+  - id: ja_misunderstanding_fix_live
+    lane: live_conversation
+    priority: 15
+    maturity: guarded
+    portfolio_role: guarded
+    archetype_tags: [misunderstanding_correction, guarded]
+    topic_bucket: language
+    language_scope: [ja]
+    country_scope: [jp, tw, us, kr]
+    intent_tags: [guarded, misunderstanding, correction]
+    theme_tags: [language, custom, image]
+    window_hours: 48
+    cadence_minutes: 720
+    discovery_limit: 12
+    deep_read_budget: 1
+    query_template: '(日本 OR 日本人) (誤解 OR 違う OR そうじゃない OR 本当) (韓国 OR アメリカ OR 台湾) lang:ja -政治 -戦争 -移民 -基地問題 -差別'
+    gate_policy:
+      min_views: 30000
+      min_replies: 80
+      min_quotes: 8
+    enabled: false
+    notes: guarded; needs stronger safety model before reactivation
+
+  - id: en_country_banter_live
+    lane: exploration
+    priority: 10
+    maturity: guarded
+    portfolio_role: guarded
+    editorial_modes: [single_post]
+    country_pairs: [jp_us, jp_gb, us_gb, us_au, gb_au]
+    language_lane: en_hub
+    motif: object_anchor_banter
+    topic_pack: language_play
+    risk_tier: guarded
+    expected_reply_driver: playful_vote
+    target_reply_min: 60
+    exclude_pack: [core_safe, banter_guard, language_guard]
+    archetype_tags: [banter, comparison, guarded]
+    topic_bucket: language
+    language_scope: [en]
+    country_scope: [jp, us, gb, au, ca]
+    intent_tags: [guarded, banter, comparison, slang]
+    theme_tags: [slang, word_choice, euphemism, snack_names, toilet_humor]
+    window_hours: 72
+    cadence_minutes: 720
+    discovery_limit: 12
+    deep_read_budget: 1
+    query_template: '((Japan OR Japanese OR America OR American OR Britain OR British OR Australia OR Australian OR Canada OR Canadian) ("what do you call" OR "why do you call it" OR "who says" OR "we call it")) (slang OR word OR phrase OR euphemism OR toilet OR chips OR crisps OR fries OR soda OR candy) lang:en -war -government -election -immigration -history -religion -race'
+    gate_policy:
+      min_views: 15000
+      min_replies: 60
+      min_quotes: 6
+    enabled: false
+    notes: guarded seed for the operator's desired silly cross-country debates; only revive when the anchor is a concrete word or object and deep-read confirms the thread stays playful
+
+  - id: ko_jp_country_question_guarded
+    lane: exploration
+    priority: 5
+    maturity: guarded
+    portfolio_role: guarded
+    archetype_tags: [country_question, exploration, guarded]
+    topic_bucket: identity
+    language_scope: [ko]
+    country_scope: [jp, kr]
+    intent_tags: [guarded, country_question, exploration]
+    theme_tags: [impression, culture]
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 12
+    deep_read_budget: 1
+    query_template: '(일본 OR 일본인) (왜 OR 한국 OR 미국 OR 외국) lang:ko -정치 -역사 -전쟁'
+    gate_policy:
+      min_views: 30000
+      min_replies: 30
+      min_quotes: 5
+    enabled: false
+    notes: manual-only until safety policy is stronger

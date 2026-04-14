@@ -1,13 +1,22 @@
 # WorldGossip 技術設計書
 
 作成日: 2026-04-14 JST  
-ステータス: Final  
-役割: この文書は WorldGossip の実装仕様を定義する正本である。企画思想は `project-concept.md`、採用判断は `worldgossip-optimal-design.md` を参照する。
+ステータス: Revised for flexible editorial units (2026-04-15)
+役割: この文書は WorldGossip の実装仕様を定義する正本である。企画思想は `project-concept.md`、採用判断は `worldgossip-optimal-design.md`、収集詳細は `worldgossip-collection-design.md` を参照する。
 
 ## 1. スコープ
 
 この設計書は、WorldGossip の MVP から初期本番までを対象とする。  
-対象は `X/Twitter 上の公開投稿を収集し、会話が起きやすい投稿ペアを抽出し、人間レビュー後に公開する編集支援システム` である。
+対象は `X/Twitter 上の公開投稿を収集し、会話が起きやすい editorial unit を抽出し、人間レビュー後に公開する編集支援システム` である。
+
+ここでいう editorial unit は次の 3 種類を持つ。
+
+- `single_post`
+  - 1 投稿だけで多国籍会話の起点になっているもの
+- `paired_post`
+  - 2 投稿を並べることで温度差や共通点が立つもの
+- `hybrid`
+  - 単体でも成立し、並置しても強くなるもの
 
 初期は次を前提とする。
 
@@ -62,8 +71,8 @@
    - 言語、国タグ、文化語、会話フック、危険語を付与する
 4. `embedder`
    - 新規 post に embeddings を生成する
-5. `pairer`
-   - vector retrieval と lexical retrieval を統合し、候補ペアを作る
+5. `assembler`
+   - single-post 候補の抽出と pair 候補の組成を統合し、候補 editorial unit を作る
 6. `judge`
    - 上位候補だけを `gpt-5.4-nano` で最終判定する
 7. `review-ui`
@@ -86,13 +95,14 @@ jobs/
   ingest-posts
   normalize-and-tag
   embed-posts
-  pair-posts
+  assemble-candidates
   deep-read-shortlist
-  judge-pairs
+  judge-units
   observe-feedback
 
 db/
   Supabase Postgres
+  post_observations
   pgvector
   PGroonga
 ```
@@ -107,9 +117,9 @@ db/
 2. `ingest-posts`
 3. `normalize-and-tag`
 4. `embed-posts`
-5. `pair-posts`
+5. `assemble-candidates`
 6. `deep-read-shortlist`
-7. `judge-pairs`
+7. `judge-units`
 8. `review-and-publish`
 9. `observe-feedback`
 
@@ -118,14 +128,17 @@ db/
 - `query_profiles` に基づき `Agent Reach twitter search` を実行する
 - evidence は run 単位で保存する
 - 取得後に host 側で `views` `replies` `quotes` を二次評価する
+- 収集は `hot_trend` `live_conversation` `bridge_candidate` `exploration` `recheck` の lane 単位で回す
 
-初期の強い query family は次で固定する。
+初期の強い query family は固定テーマとして凍結せず、次のような `会話トリガー` を優先して広く持つ。
 
-- 日本人が海外に素朴な質問を投げる型
-- 英語圏が日本について open question を投げる型
-- 食、菓子、価格差、生活用品の比較型
-- 日仏、日台、日韓の好意 + 温度差型
-- 自動翻訳越しの多国籍交流型
+- answerable question
+- self-contained multinational roll call
+- slang / wordplay / euphemism
+- localization compare
+- price / household probe
+- low-stakes banter with object anchors
+- translation relay
 
 ### 5.3 `ingest-posts`
 
@@ -133,6 +146,7 @@ db/
 - raw payload 全体は DB に持たず、必要最小限だけ JSON として持つ
 - evidence ledger への path を保持する
 - 一意キーは `(source_platform, source_post_id)` とする
+- 同時に `post_observations` に `どの run / lane / query で見つかったか` を記録する
 
 ### 5.4 `normalize-and-tag`
 
@@ -156,14 +170,22 @@ db/
 - `dimensions=1024` を指定する
 - embedding 対象は原文ベースとする
 
-### 5.6 `pair-posts`
+### 5.6 `assemble-candidates`
 
-候補生成は 2 系統で行う。
+候補生成は 2 レールで行う。
 
-- vector candidates
-- lexical candidates
+- `single-post candidates`
+  - reply density
+  - mixed-language participation
+  - self-contained roll call
+  - explanation thread
+  - low-stakes humor / wordplay
+- `paired-post candidates`
+  - vector candidates
+  - lexical candidates
 
-両方を union し、重複を除外して `candidate_pairs` を作る。
+この 2 レールを統合し、`candidate_units` を作る。
+`candidate_units` は `assembly_mode` により `single_post` / `paired_post` / `hybrid` を表現する。
 
 ### 5.7 `deep-read-shortlist`
 
@@ -171,8 +193,9 @@ db/
 - root id と root author を保持する
 - root author reply を優先して取り込む
 - recommendation noise を除外する
+- deep-read で取得した root / reply / quote も必要に応じて `posts` と `post_observations` に取り込む
 
-### 5.8 `judge-pairs`
+### 5.8 `judge-units`
 
 - 上位 10 件前後だけを `gpt-5.4-nano` へ送る
 - Batch API を優先する
@@ -193,20 +216,39 @@ db/
 
 ## 6. データモデル
 
-初期は 8 テーブルで運用する。
+初期は 9 テーブルで運用する。
 
 ### 6.1 `query_profiles`
 
 収集 query 定義。
 
+初期値は [query_profiles.yml](/c:/WorldGossip/config/query_profiles.yml:1) と [collection_lanes.yml](/c:/WorldGossip/config/collection_lanes.yml:1) を seed として管理する。
+
 - `id`
 - `name`
+- `lane`
+- `priority`
 - `channel`
 - `operation`
 - `query_template`
 - `language_scope`
 - `country_scope`
 - `intent_tags_json`
+- `editorial_modes`
+- `country_pairs`
+- `language_lane`
+- `motif`
+- `topic_pack`
+- `risk_tier`
+- `expected_reply_driver`
+- `target_reply_min`
+- `exclude_pack`
+- `window_hours`
+- `cadence_minutes`
+- `discovery_limit`
+- `deep_read_budget`
+- `gate_policy_json`
+- `exclusions_json`
 - `enabled`
 
 ### 6.2 `collection_runs`
@@ -215,11 +257,16 @@ db/
 
 - `id`
 - `query_profile_id`
+- `lane`
 - `run_id`
 - `started_at`
 - `finished_at`
+- `window_start`
+- `window_end`
 - `status`
 - `item_count`
+- `candidate_count`
+- `deep_read_count`
 - `ledger_path`
 - `error_json`
 
@@ -235,6 +282,8 @@ db/
 - `author_name`
 - `posted_at`
 - `collected_at`
+- `first_seen_at`
+- `last_seen_at`
 - `body_raw`
 - `body_norm`
 - `lang`
@@ -267,23 +316,50 @@ db/
 
 - `(post_id, model_name)`
 
-### 6.5 `candidate_pairs`
+### 6.5 `post_observations`
+
+継続収集時の観測履歴。
 
 - `id`
-- `left_post_id`
-- `right_post_id`
+- `post_id`
+- `collection_run_id`
+- `query_profile_id`
+- `lane`
+- `source_role`
+- `observed_at`
+- `result_rank`
+- `engagement_json`
+- `raw_item_path`
+- `is_shortlist_candidate`
+
+`source_role` は少なくとも次を持つ。
+
+- `search_result`
+- `deep_read_root`
+- `deep_read_reply`
+- `deep_read_quote`
+- `deep_read_noise`
+
+### 6.6 `candidate_units`
+
+- `id`
+- `assembly_mode`
+- `primary_post_id`
+- `secondary_post_id`
+- `retrieval_source`
 - `semantic_score`
 - `lexical_anchor_score`
-- `country_relation_score`
+- `self_contained_score`
+- `cross_country_score`
 - `freshness_score`
 - `conversation_signal_score`
-- `language_gap_bonus`
+- `language_mix_bonus`
 - `novelty_score`
 - `safety_penalty`
 - `retrieval_score`
 - `editorial_score`
 - `llm_keep`
-- `llm_match_type`
+- `llm_unit_type`
 - `llm_safety`
 - `llm_confidence`
 - `llm_editorial_angle`
@@ -292,16 +368,20 @@ db/
 - `status`
 - `created_at`
 
+`secondary_post_id` は `single_post` の場合 `NULL` を許容する。
+
 一意制約:
 
-- `(least(left_post_id, right_post_id), greatest(left_post_id, right_post_id))`
+- `single_post`: `(assembly_mode, primary_post_id)`
+- `paired_post`: `(least(primary_post_id, secondary_post_id), greatest(primary_post_id, secondary_post_id))`
 
-### 6.6 `review_items`
+### 6.7 `review_items`
 
 - `id`
-- `candidate_pair_id`
+- `candidate_unit_id`
 - `review_status`
 - `reviewer`
+- `assembly_mode`
 - `angle_label`
 - `interaction_goal`
 - `opening_question`
@@ -310,7 +390,7 @@ db/
 - `created_at`
 - `updated_at`
 
-### 6.7 `publish_jobs`
+### 6.8 `publish_jobs`
 
 - `id`
 - `review_item_id`
@@ -322,7 +402,7 @@ db/
 - `published_post_id`
 - `failure_reason`
 
-### 6.8 `published_post_metrics`
+### 6.9 `published_post_metrics`
 
 - `id`
 - `publish_job_id`
@@ -347,7 +427,16 @@ db/
 
 - HNSW cosine index on `embedding`
 
-### 7.3 `candidate_pairs`
+### 7.3 `post_observations`
+
+- `post_id`
+- `collection_run_id`
+- `query_profile_id`
+- `observed_at desc`
+- `lane`
+- `source_role`
+
+### 7.4 `candidate_units`
 
 - `status`
 - `editorial_score desc`
@@ -355,7 +444,16 @@ db/
 
 ## 8. 候補探索設計
 
-### 8.1 semantic retrieval
+### 8.1 single-post candidate retrieval
+
+基本条件:
+
+- 直近 7 日を優先
+- mixed-language reply や multi-country participation を加点する
+- `post_observations` から freshness と velocity を補助特徴として取る
+- `what do you call this` `where are you from and` `how do you say` のような roll-call / explanation / humor hook を拾う
+
+### 8.2 paired-post retrieval
 
 基本条件:
 
@@ -363,13 +461,14 @@ db/
 - 直近 7 日を優先
 - 同一言語のみの候補は優先度を下げる
 - 異なる国言及や target 国の噛み合いを優先する
+- `post_observations` から freshness と velocity を補助特徴として取る
 
 初期取得数:
 
 - vector top-k: `80`
 - lexical top-k: `30`
 
-### 8.2 lexical retrieval
+### 8.3 lexical retrieval
 
 `PGroonga` では次のような字面アンカーを拾う。
 
@@ -378,8 +477,9 @@ db/
 - 略称
 - 文化語
 - ミーム語
+- 言い回し、俗語、wordplay anchor
 
-### 8.3 retrieval score
+### 8.4 retrieval score
 
 ```text
 retrieval_score =
@@ -389,18 +489,20 @@ retrieval_score =
 + 0.10 * freshness_score
 ```
 
-### 8.4 editorial score
+### 8.5 editorial score
 
 ```text
 editorial_score =
   0.70 * retrieval_score
 + 0.15 * conversation_signal_score
-+ 0.10 * language_gap_bonus
++ 0.10 * language_mix_bonus
 + 0.05 * novelty_score
 - 0.10 * safety_penalty
 ```
 
-### 8.5 初期閾値
+`conversation_signal_score` には `replies` `quotes` `open question 性` `self-contained completion` に加え、`post_observations` から計算した `reply_velocity` と `quote_velocity` を補助特徴として入れる。
+
+### 8.6 初期閾値
 
 - `editorial_score >= 0.80`: judge 対象の強候補
 - `0.72 <= editorial_score < 0.80`: judge 対象の保留候補
@@ -412,14 +514,16 @@ editorial_score =
 
 ### 9.1 目的
 
-`gpt-5.4-nano` は候補ペアの `最終 keep / drop` と `review 補助説明` だけに使う。
+`gpt-5.4-nano` は候補 editorial unit の `最終 keep / drop` と `review 補助説明` だけに使う。
 
 ### 9.2 入力
 
-- 左右投稿の原文
+- primary post の原文
+- secondary post の原文
 - 言語情報
 - 国タグ
 - retrieval / editorial score
+- assembly mode
 - 必要に応じて deep-read で得た短い文脈
 
 ### 9.3 出力契約
@@ -427,12 +531,12 @@ editorial_score =
 ```json
 {
   "keep": true,
-  "match_type": "shared_reaction",
+  "unit_type": "single_post",
   "safety": "low",
   "confidence": 0.86,
-  "editorial_angle": "same_theme_different_temperature",
-  "reason_ja": "同じ題材に対する日英圏の温度差が会話を起こしやすい。",
-  "reason_en": "The pair shares a topic but differs in tone, which makes it conversation-friendly."
+  "editorial_angle": "multi_country_roll_call",
+  "reason_ja": "投稿単体で各国の参加を呼び込みやすく、会話の入口として完成している。",
+  "reason_en": "The post works on its own because people from multiple countries can join the same conversation."
 }
 ```
 
@@ -447,12 +551,14 @@ editorial_score =
 
 ### 10.1 表示項目
 
-- 左右投稿の原文
+- primary post の原文
+- secondary post の原文
 - `reason_ja` と `reason_en`
 - 言語
 - 国タグ
 - tone / interaction style
 - `editorial_score`
+- lane と query profile
 - 危険フラグ
 - 参照元 URL
 - deep-read の補足文脈
@@ -478,6 +584,8 @@ editorial_score =
 - `tone_label`
 - `interaction_goal`
 - `opening_question`
+
+`single_post` の場合は、原文の自己完結性を壊さないことを優先し、無理に比較文脈を足さない。
 
 制約:
 
@@ -514,7 +622,7 @@ editorial_score =
 判定は 3 段階で行う。
 
 1. 収集時 hard exclusion
-2. pairing 時 safety penalty
+2. candidate assembly 時 safety penalty
 3. judge + reviewer 確認
 
 ## 13. 公開設計
@@ -544,6 +652,7 @@ editorial_score =
 
 - evidence ledger
 - job 実行ログ
+- post observation 履歴
 - candidate 生成理由
 - reviewer 履歴
 - publish 成否
@@ -553,7 +662,8 @@ editorial_score =
 
 - `posts` は `(source_platform, source_post_id)` で upsert
 - `post_embeddings` は `(post_id, model_name)` で upsert
-- `candidate_pairs` は順不同 unique
+- `post_observations` は `(post_id, collection_run_id, source_role, result_rank)` を重複保存しない
+- `candidate_units` は `assembly_mode` に応じて unique 制約を切り替える
 - `publish_jobs` は active 状態の重複を作らない
 
 ### 14.3 障害時
@@ -570,8 +680,11 @@ editorial_score =
 
 - Supabase schema
 - `posts`
+- `post_observations`
 - `post_embeddings`
-- `candidate_pairs`
+- `candidate_units`
+- lane scheduler
+- discovery / shortlist gate
 - OpenAI embeddings 接続
 - PGroonga 併用 retrieval
 

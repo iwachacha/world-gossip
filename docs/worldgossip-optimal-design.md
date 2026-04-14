@@ -1,8 +1,8 @@
 # WorldGossip 最適設計と採用判断
 
 作成日: 2026-04-14 JST  
-ステータス: Final  
-役割: この文書は WorldGossip の最終採用構成を定義する意思決定文書である。企画思想は `project-concept.md`、実装仕様は `worldgossip-technical-design.md` を参照する。
+ステータス: Revised for flexible editorial units (2026-04-15)
+役割: この文書は WorldGossip の最終採用構成を定義する意思決定文書である。企画思想は `project-concept.md`、実装仕様は `worldgossip-technical-design.md`、収集詳細は `worldgossip-collection-design.md` を参照する。
 
 ## 1. 最終結論
 
@@ -26,7 +26,7 @@ WorldGossip の最適解は、`収集と編集の運用設計は現行案を継�
 WorldGossip の価値は、単なる多言語意味検索ではなく、次の一連の流れにある。
 
 - 会話が起きそうな投稿を集める
-- 文脈を壊さずに組み合わせる
+- 単体でも並置でも使える editorial unit に整える
 - 温度感と危険度を調整する
 - 問いかけ付きで編集する
 - 投稿後の反応から次回を改善する
@@ -117,14 +117,15 @@ Agent Reach
   -> FastAPI worker
       -> normalize and tag
       -> embed
-      -> pair
+      -> assemble editorial units
       -> judge
       -> review queue
       -> publish trigger
   -> Supabase Postgres
       -> posts
+      -> post_observations
       -> post_embeddings
-      -> candidate_pairs
+      -> candidate_units
       -> review_items
       -> publish_jobs
       -> published_post_metrics
@@ -167,13 +168,30 @@ query profile、run id、evidence path、review 履歴を残し、改善サイ�
 - `ko` `zh` `es` `fr` は補助レーンとする
 - 国軸は `日本` を中心に始める
 
-### 9.2 強い query family
+### 9.2 収集レーン
 
-- 日本人が海外に素朴な質問を投げる型
-- 英語圏が日本について open question を投げる型
-- 食、菓子、価格差、生活用品の比較型
-- 日仏、日台、日韓の好意 + 温度差型
-- 自動翻訳越しの多国籍交流型
+継続収集は単一バッチではなく、次のレーンで分ける。
+
+- `hot_trend`
+  - 直近 0-6 時間の急伸投稿を追う
+- `live_conversation`
+  - 直近 6-24 時間の reply / quote が厚い投稿を追う
+- `bridge_candidate`
+  - 直近 1-7 日の意味マッチ候補と後編集価値の高い単体投稿を拾う
+- `exploration`
+  - 新しい国、言語、テーマ、query family を試す
+- `recheck`
+  - 強い query family を別窓で再走査する
+
+### 9.3 強い query family
+
+- answerable question
+- self-contained multinational roll call
+- slang / wordplay / euphemism
+- localization compare
+- price / household probe
+- low-stakes banter with object anchors
+- translation relay
 
 ## 10. 検索戦略
 
@@ -193,7 +211,7 @@ query profile、run id、evidence path、review 履歴を残し、改善サイ�
 `gpt-5.4-nano` は次だけを返す。
 
 - `keep`
-- `match_type`
+- `unit_type`
 - `safety`
 - `confidence`
 - `editorial_angle`
@@ -202,18 +220,20 @@ query profile、run id、evidence path、review 履歴を残し、改善サイ�
 
 ## 11. データ設計の方針
 
-初期は次の 8 テーブルで十分である。
+初期は次の 9 テーブルで十分である。
 
 - `query_profiles`
 - `collection_runs`
 - `posts`
+- `post_observations`
 - `post_embeddings`
-- `candidate_pairs`
+- `candidate_units`
 - `review_items`
 - `publish_jobs`
 - `published_post_metrics`
 
-`source_posts`、`post_annotations`、`post_translations` のような細分化は初期には過剰であり、`posts` へ集約した方が運用と実装が軽い。
+`source_posts`、`post_annotations`、`post_translations` のような細分化は初期には過剰であり、基本は `posts` へ集約した方が運用と実装が軽い。
+ただし継続収集では `どの run / lane / query でその投稿を何度見たか` が重要になるため、観測履歴だけは `post_observations` に独立保持する。
 
 ## 12. 投稿生成の方針
 

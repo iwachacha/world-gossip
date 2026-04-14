@@ -1,0 +1,59 @@
+version: 1
+
+lanes:
+  hot_trend:
+    purpose: catch fast-rising buzz posts
+    window_hours: 6
+    cadence_minutes: 30
+    discovery_limit: 20
+    deep_read_budget: 4
+    shortlist_gate:
+      min_views: 150000
+      min_replies: 200
+      min_quotes: 30
+      min_reply_velocity_per_hour: 25
+
+  live_conversation:
+    purpose: capture threads that already have active replies or quotes
+    window_hours: 24
+    cadence_minutes: 120
+    discovery_limit: 20
+    deep_read_budget: 5
+    shortlist_gate:
+      min_views: 80000
+      min_replies: 120
+      min_quotes: 40
+      allow_mixed_language_reply: true
+
+  bridge_candidate:
+    purpose: build semantic matching inventory and collect posts that can later work as single-post or paired-post editorial units
+    window_hours: 168
+    cadence_minutes: 480
+    discovery_limit: 30
+    deep_read_budget: 3
+    shortlist_gate:
+      min_views: 30000
+      min_replies: 40
+      require_country_anchor: true
+
+  exploration:
+    purpose: try new countries, languages, and query families
+    window_hours: 168
+    cadence_minutes: 720
+    discovery_limit: 16
+    deep_read_budget: 2
+    shortlist_gate:
+      min_views: 15000
+      min_replies: 25
+      require_country_anchor: true
+
+  recheck:
+    purpose: rerun strong profiles on shifted windows and recover misses
+    window_hours: 72
+    cadence_minutes: 720
+    discovery_limit: 20
+    deep_read_budget: 2
+    shortlist_gate:
+      min_views: 50000
+      min_replies: 60
+      require_country_anchor: true
